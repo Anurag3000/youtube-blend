@@ -103,6 +103,39 @@ const getUserById = async (req, res) => {
   }
 };
 
+// Get user by username (more realistic not copy pasting mongo db id again and again)
+
+const getUserByUsername=async(req, res)=>{
+  try{
+    const{username}=req.params;
+    if(!username){
+      return res.status(400).json({
+        message: "Username is required"
+      });
+    }
+
+    const normalizedUsername=username.trim().toLowerCase();
+
+    const user=await User.findOne({
+      username: normalizedUsername
+    });
+
+    if(!user){
+      return res.status(404).json({
+        message: "User not found"
+      })
+    }
+
+    return res.status(200).json(user)
+  }
+  catch (error){
+    console.log(error);
+    return res.status(500).json({
+      message:"Server error while fetching user"
+    })
+  }
+}
+
 /* ------------------ Compare Users ------------------ */
 const compareUsers = async (req, res) => {
   try {
@@ -246,6 +279,7 @@ module.exports = {
   createUser,
   getAllUsers,
   getUserById,
+  getUserByUsername,
   compareUsers,
   uploadWatchHistory
 };
