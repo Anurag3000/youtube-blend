@@ -31,13 +31,27 @@ const createUser = async (req, res) => {
   try {
     const { username, name, channels, categories } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ message: "Name is required" });
+    if (!username || !name) {
+      return res.status(400).json({
+        message: "Username and name are required"
+      });
     }
-    // const cleanUsername=username;
+
+    const normalizedUsername = username.trim().toLowerCase();
     const cleanName = name.trim();
     const cleanChannels = sanitizeStringArray(channels);
     const cleanCategories = sanitizeStringArray(categories);
+
+    const existingUser = await User.findOne({
+      username: normalizedUsername
+    });
+
+    if(existingUser){
+      return res.status(200).json({
+        message: "User already exists",
+        user: existingUser
+      })
+    }
 
     const channelData = cleanChannels.map(name => ({
       name,
