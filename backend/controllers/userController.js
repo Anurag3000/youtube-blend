@@ -29,12 +29,12 @@ const testUser = (req, res) => {
 /* ------------------ Create User ------------------ */
 const createUser = async (req, res) => {
   try {
-    const { name, channels, categories } = req.body;
+    const { username, name, channels, categories } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Name is required" });
     }
-
+    // const cleanUsername=username;
     const cleanName = name.trim();
     const cleanChannels = sanitizeStringArray(channels);
     const cleanCategories = sanitizeStringArray(categories);
@@ -51,6 +51,7 @@ const createUser = async (req, res) => {
 
 
     const user = new User({
+      username: username,
       name: cleanName,
       channels: channelData,
       categories: categoryData
