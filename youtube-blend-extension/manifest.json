@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Blend",
+  "description": "Collects YouTube watch history for similarity analysis",
+  "version": "1.0",
+  "permissions": ["storage", "tabs", "scripting"],
+    "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
+    "http://localhost:5000/*"
+    ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+  {
+    "matches": [
+      "https://www.youtube.com/*",
+      "https://m.youtube.com/*"
+    ],
+    "js": ["content.js"]
+  }
+],
+    "action": {
+    "default_popup": "popup.html"
+    }
+
+}
