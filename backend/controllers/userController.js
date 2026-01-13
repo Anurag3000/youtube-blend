@@ -288,6 +288,7 @@ const uploadWatchHistory=async(req, res)=>{
   // Finding Match FOr User
   const findBestMatch = async(req, res)=>{
     try{
+      const MIN_SIMILARITY_THRESHOLD = 40;
       const userId= req.params.id;
 
       const targetUser = await User.findById(userId);
@@ -322,7 +323,7 @@ const uploadWatchHistory=async(req, res)=>{
         user.channels
       );
 
-      if( result.similarity > bestScore){
+      if( result.similarity >= MIN_SIMILARITY_THRESHOLD && result.similarity > bestScore){
         bestScore=result.similarity;
         bestMatch=user;
         bestCommonChannels=result.common_channels;
