@@ -1,4 +1,6 @@
 import math
+import sys
+import json
 
 # ML Concept 1: Feature space
 
@@ -67,5 +69,11 @@ user2 = [
     {"name": "kurzgesagt", "count": 2.1}
 ]
 
-result = compute_user_similarity(user1, user2)
-print(result)
+input_data=json.loads(sys.stdin.read())
+
+user1_channels=input_data["user1_channels"]
+user2_channels=input_data["user2_channels"]
+
+result=compute_user_similarity(user1_channels,user2_channels)
+
+print(json.dumps(result))

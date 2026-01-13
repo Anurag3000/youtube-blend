@@ -3,6 +3,8 @@ const { calculateJaccardSimilarity, calculateWeightedJaccard } = require("../uti
 const { weights } = require("../config/similarityConfig");
 const {execFile} = require("child_process")
 const path=require("path")
+const { runPythonSimilarity } = require("../utils/pythonSimilarity");
+
 
 /* Utility: sanitize string arrays  */
 const sanitizeStringArray = (arr = []) => {
@@ -174,43 +176,54 @@ const compareUsers = async (req, res) => {
       });
     }
 
-    const channelSimilarity = calculateWeightedJaccard(
-      user1.channels,
-      user2.channels
-    );
+    // const channelSimilarity = calculateWeightedJaccard(
+    //   user1.channels,
+    //   user2.channels
+    // );
 
-    const categorySimilarity = calculateWeightedJaccard(
-      user1.categories,
-      user2.categories
-    );
+    // const categorySimilarity = calculateWeightedJaccard(
+    //   user1.categories,
+    //   user2.categories
+    // );
 
-    const finalSimilarity = (
-      channelSimilarity * weights.channel +
-      categorySimilarity * weights.category
-    ).toFixed(2);
+    // const finalSimilarity = (
+    //   channelSimilarity * weights.channel +
+    //   categorySimilarity * weights.category
+    // ).toFixed(2);
 
-    const commonChannels = user1.channels
-  .filter(ch1 =>
-    user2.channels.some(ch2 => ch2.name === ch1.name)
-  )
-  .map(ch => ch.name);
+    const similarityResult = await runPythonSimilarity(user1.channels,user2.channels);
 
-const commonCategories = user1.categories
-  .filter(cat1 =>
-    user2.categories.some(cat2 => cat2.name === cat1.name)
-  )
-  .map(cat => cat.name);
 
+//     const commonChannels = user1.channels
+//   .filter(ch1 =>
+//     user2.channels.some(ch2 => ch2.name === ch1.name)
+//   )
+//   .map(ch => ch.name);
+
+// const commonCategories = user1.categories
+//   .filter(cat1 =>
+//     user2.categories.some(cat2 => cat2.name === cat1.name)
+//   )
+//   .map(cat => cat.name);
+
+
+    // res.status(200).json({
+    //   user1: user1.name,
+    //   user2: user2.name,
+    //   similarityPercentage: `${finalSimilarity}%`,
+    //   channelSimilarity: `${channelSimilarity.toFixed(2)}%`,
+    //   categorySimilarity: `${categorySimilarity.toFixed(2)}%`,
+    //   commonChannels,
+    //   commonCategories
+    // });
 
     res.status(200).json({
       user1: user1.name,
       user2: user2.name,
-      similarityPercentage: `${finalSimilarity}%`,
-      channelSimilarity: `${channelSimilarity.toFixed(2)}%`,
-      categorySimilarity: `${categorySimilarity.toFixed(2)}%`,
-      commonChannels,
-      commonCategories
+      similarityPercentage: `${similarityResult.similarity}%`,
+      commonChannels: similarityResult.common_channels
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -272,6 +285,67 @@ const uploadWatchHistory=async(req, res)=>{
     res.status(500).json({message: error.message});
   }
 }
+  // Finding Match FOr User
+  const findBestMatch = async(req, res)=>{
+    try{
+      const userId= req.params.id;
+
+      const targetUser = await User.findById(userId);
+      if(!targetUser){
+        return res.status(404).json({
+          message: "user not found"
+        })
+      }
+
+      const otherUsers=await User.find({
+        _id: {$ne: userId}
+      });
+
+      if(otherUsers.length===0){
+        return res.status(200).json({
+          message: "no other users to compare with"
+        });
+      }
+
+      let bestMatch=null;
+      let bestScore= -1;
+      let bestCommandChannels=[];
+
+      for (const user of otherUsers){
+        if(user.channels.length===0 || targetUser.channels.length===0){
+          continue;
+        }
+      
+
+      const result= await runPythonSimilarity(
+        targetUser.channels,
+        user.channels
+      );
+
+      if( result.similarity > bestScore){
+        bestScore=result.similarity;
+        bestMatch=user;
+        bestCommonChannels=result.common_channels;
+      }
+    }
+
+    if(!bestMatch){
+      return res.status(200).json({
+        message: "no meaningful match found"
+      });
+    }
+
+    res.status(200).json({
+      user: targetUser.name,
+      bestMatch: bestMatch.name,
+      similarityPercentage: `${bestScore}%`,
+      commonChannels: bestCommonChannels
+    });
+  }
+  catch(error){
+    res.status(500).json({message: error.message})
+  }
+}
 
 /* ------------------ Exports ------------------ */
 module.exports = {
@@ -281,5 +355,6 @@ module.exports = {
   getUserById,
   getUserByUsername,
   compareUsers,
-  uploadWatchHistory
+  uploadWatchHistory,
+  findBestMatch
 };
