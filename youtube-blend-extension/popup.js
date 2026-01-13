@@ -32,7 +32,7 @@ function downloadCSV(csvContent){
 }
 
 document.getElementById("uploadBtn").addEventListener("click", () => {
-  chrome.storage.local.get({ watchHistory: [] }, async (result) => {
+  chrome.storage.local.get({ watchHistory: [], userId: null, username: null }, async (result) => {
     const history = result.watchHistory;
 
     if (history.length === 0) {
@@ -40,18 +40,58 @@ document.getElementById("uploadBtn").addEventListener("click", () => {
       return;
     }
 
-    const csv = convertToCSV(history);
+    let userId=result.userId;
+    let username=result.username;
 
+    //step 1 - ask for username if not stored
+    if(!username){
+      username=prompt("Enter your username: ");
+      if(!username){
+        alert("Username is required");
+        return;
+      }
+    }
+
+    //step 2: Resolve userId if not stored
+    if(!userId){
+      try{
+        const response=await fetch(
+          `http://localhost:5000/api/users/username/${username.toLowerCase()}`
+        );
+
+        if(response.status===404){
+          alert("User not found. Please create user first");
+          return;
+        }
+
+        const user=await response.json();
+        userId=user._id;
+
+        //store for fututre use
+        chrome.storage.local.set({ userId, username });
+      }
+      catch(error){
+        console.log(error);
+        alert("Failed to resolve user");
+        return;
+      }
+    }
+
+
+    // step 3: Upload watch history
+
+    const csv = convertToCSV(history);
     const blob = new Blob([csv], { type: "text/csv" });
+
     const formData = new FormData();
     formData.append("file", blob, "watch_history.csv");
 
-    // 🔴 IMPORTANT: replace with real user ID
-    const USER_ID = "6965001fa880cc1cd32b81dd";
+    // // 🔴 IMPORTANT: replace with real user ID
+    // const USER_ID = "6965001fa880cc1cd32b81dd";
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/users/${USER_ID}/upload-history`,
+        `http://localhost:5000/api/users/${userId}/upload-history`,
         {
           method: "POST",
           body: formData
