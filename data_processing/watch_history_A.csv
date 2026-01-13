@@ -1,6 +1,6 @@
-video_id,channel,category,watched_at
-x1,Veritasium,Education,2026-01-05
-x2,Veritasium,Education,2026-01-06
-x3,MKBHD,Technology,2026-01-07
-x4,MKBHD,Technology,2026-01-08
-x5,MKBHD,Technology,2026-01-09
+videoTitle,channelName,videoUrl,watchedAt
+Black Holes Explained,veritasium,https://youtube.com/v1,2026-01-12T10:00:00Z
+Quantum Mechanics,veritasium,https://youtube.com/v2,2026-01-12T11:00:00Z
+Math Beauty,3blue1brown,https://youtube.com/v3,2026-01-11T15:00:00Z
+Neural Networks,3blue1brown,https://youtube.com/v4,2026-01-10T09:00:00Z
+Science Facts,veritasium,https://youtube.com/v5,2026-01-09T08:00:00Z
