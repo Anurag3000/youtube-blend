@@ -1,0 +1,361 @@
+const User = require("../models/User");
+const { calculateJaccardSimilarity, calculateWeightedJaccard } = require("../utils/similarity");
+const { weights } = require("../config/similarityConfig");
+const {execFile} = require("child_process")
+const path=require("path")
+const { runPythonSimilarity } = require("../utils/pythonSimilarity");
+
+
+/* Utility: sanitize string arrays  */
+const sanitizeStringArray = (arr = []) => {
+  if (!Array.isArray(arr)) return [];
+
+  return [
+    ...new Set(
+      arr
+        .filter(item => typeof item === "string")
+        .map(item => item.trim().toLowerCase())
+        .filter(item => item.length > 0)
+    )
+  ];
+};
+
+/* ------------------ Test route ------------------ */
+const testUser = (req, res) => {
+  res.json({
+    message: "Data received successfully",
+    data: req.body
+  });
+};
+
+/* ------------------ Create User ------------------ */
+const createUser = async (req, res) => {
+  try {
+    const { username, name, channels, categories } = req.body;
+
+    if (!username || !name) {
+      return res.status(400).json({
+        message: "Username and name are required"
+      });
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    const cleanName = name.trim();
+    const cleanChannels = sanitizeStringArray(channels);
+    const cleanCategories = sanitizeStringArray(categories);
+
+    const existingUser = await User.findOne({
+      username: normalizedUsername
+    });
+
+    if(existingUser){
+      return res.status(200).json({
+        message: "User already exists",
+        user: existingUser
+      })
+    }
+
+    const channelData = cleanChannels.map(name => ({
+      name,
+      count: 1
+    }));
+
+    const categoryData = cleanCategories.map(name => ({
+      name,
+      count: 1
+    }));
+
+
+    const user = new User({
+      username: normalizedUsername,
+      name: cleanName,
+      channels: channelData,
+      categories: categoryData
+    });
+
+    const savedUser = await user.save();
+    res.status(201).json(savedUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ------------------ Get All Users ------------------ */
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find();
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ------------------ Get User by ID ------------------ */
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Invalid user ID" });
+  }
+};
+
+// Get user by username (more realistic not copy pasting mongo db id again and again)
+
+const getUserByUsername=async(req, res)=>{
+  try{
+    const{username}=req.params;
+    if(!username){
+      return res.status(400).json({
+        message: "Username is required"
+      });
+    }
+
+    const normalizedUsername=username.trim().toLowerCase();
+
+    const user=await User.findOne({
+      username: normalizedUsername
+    });
+
+    if(!user){
+      return res.status(404).json({
+        message: "User not found"
+      })
+    }
+
+    return res.status(200).json(user)
+  }
+  catch (error){
+    console.log(error);
+    return res.status(500).json({
+      message:"Server error while fetching user"
+    })
+  }
+}
+
+/* ------------------ Compare Users ------------------ */
+const compareUsers = async (req, res) => {
+  try {
+    const { user1Id, user2Id } = req.params;
+
+    const user1 = await User.findById(user1Id);
+    const user2 = await User.findById(user2Id);
+
+    if (!user1 || !user2) {
+      return res.status(404).json({
+        message: "One or both users not found"
+      });
+    }
+
+    if (
+      user1.channels.length === 0 &&
+      user1.categories.length === 0
+    ) {
+      return res.status(200).json({
+        user1: user1.name,
+        user2: user2.name,
+        similarityPercentage: "0%",
+        reason: `${user1.name} has no activity data`
+      });
+    }
+
+    if (
+      user2.channels.length === 0 &&
+      user2.categories.length === 0
+    ) {
+      return res.status(200).json({
+        user1: user1.name,
+        user2: user2.name,
+        similarityPercentage: "0%",
+        reason: `${user2.name} has no activity data`
+      });
+    }
+
+    // const channelSimilarity = calculateWeightedJaccard(
+    //   user1.channels,
+    //   user2.channels
+    // );
+
+    // const categorySimilarity = calculateWeightedJaccard(
+    //   user1.categories,
+    //   user2.categories
+    // );
+
+    // const finalSimilarity = (
+    //   channelSimilarity * weights.channel +
+    //   categorySimilarity * weights.category
+    // ).toFixed(2);
+
+    const similarityResult = await runPythonSimilarity(user1.channels,user2.channels);
+
+
+//     const commonChannels = user1.channels
+//   .filter(ch1 =>
+//     user2.channels.some(ch2 => ch2.name === ch1.name)
+//   )
+//   .map(ch => ch.name);
+
+// const commonCategories = user1.categories
+//   .filter(cat1 =>
+//     user2.categories.some(cat2 => cat2.name === cat1.name)
+//   )
+//   .map(cat => cat.name);
+
+
+    // res.status(200).json({
+    //   user1: user1.name,
+    //   user2: user2.name,
+    //   similarityPercentage: `${finalSimilarity}%`,
+    //   channelSimilarity: `${channelSimilarity.toFixed(2)}%`,
+    //   categorySimilarity: `${categorySimilarity.toFixed(2)}%`,
+    //   commonChannels,
+    //   commonCategories
+    // });
+
+    res.status(200).json({
+      user1: user1.name,
+      user2: user2.name,
+      similarityPercentage: `${similarityResult.similarity}%`,
+      commonChannels: similarityResult.common_channels
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Upload Watch History
+const uploadWatchHistory=async(req, res)=>{
+  try{
+    const userId=req.user.id;
+
+    if(!req.file){
+      return res.status(400).json({
+        message: "CSV File is required"
+      });
+    }
+
+    const pythonScriptPath= path.join(__dirname, "../../data_processing/process_watch_history.py");
+
+    execFile(
+      "E:\\Anaconda3\\python.exe",
+      [pythonScriptPath, req.file.path],
+      async(error, stdout, stderr)=>{
+        if(error){
+          console.error("EXEC ERROR:", error);
+          console.error("STDERR:", stderr);
+          console.error("STDOUT:", stdout);
+
+          return res.status(500).json({
+            message: error.message || "Python execution failed"
+          });
+        }
+
+        const result=JSON.parse(stdout);
+
+        const channelData = Object.entries(result.channels).map(
+          ([name, count]) => ({ name, count })
+        );
+        const categoryData = Object.entries(result.categories).map(
+          ([name, count]) => ({ name, count })
+        );
+
+        const user = await User.findByIdAndUpdate(
+          userId,
+          {
+            channels: channelData,
+            categories: categoryData
+          },
+          { new: true }
+        );
+
+        res.status(200).json({
+          message: "Watch History processed succesfully",
+          user,
+          frequencies: result
+        });
+      }
+    );
+  }catch(error){
+    res.status(500).json({message: error.message});
+  }
+}
+  // Finding Match FOr User
+  const findBestMatch = async(req, res)=>{
+    try{
+      const MIN_SIMILARITY_THRESHOLD = 40;
+      const userId= req.user.id;
+
+      const targetUser = await User.findById(userId);
+      if(!targetUser){
+        return res.status(404).json({
+          message: "user not found"
+        })
+      }
+
+      const otherUsers=await User.find({
+        _id: {$ne: userId}
+      });
+
+      if(otherUsers.length===0){
+        return res.status(200).json({
+          message: "no other users to compare with"
+        });
+      }
+
+      let bestMatch=null;
+      let bestScore= -1;
+      let bestCommonChannels=[];
+
+      for (const user of otherUsers){
+        if(user.channels.length===0 || targetUser.channels.length===0){
+          continue;
+        }
+      
+
+      const result= await runPythonSimilarity(
+        targetUser.channels,
+        user.channels
+      );
+
+      if( result.similarity >= MIN_SIMILARITY_THRESHOLD && result.similarity > bestScore){
+        bestScore=result.similarity;
+        bestMatch=user;
+        bestCommonChannels=result.common_channels;
+      }
+    }
+
+    if(!bestMatch){
+      return res.status(200).json({
+        message: "no meaningful match found"
+      });
+    }
+
+    res.status(200).json({
+      user: targetUser.name,
+      bestMatch: bestMatch.name,
+      similarityPercentage: `${bestScore}%`,
+      commonChannels: bestCommonChannels
+    });
+  }
+  catch(error){
+    res.status(500).json({message: error.message})
+  }
+}
+
+/* ------------------ Exports ------------------ */
+module.exports = {
+  testUser,
+  createUser,
+  getAllUsers,
+  getUserById,
+  getUserByUsername,
+  compareUsers,
+  uploadWatchHistory,
+  findBestMatch,
+};

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login Success</title>
+</head>
+<body>
+  <h3>Login successful. You can close this tab.</h3>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (!token) {
+      console.error("No token found");
+    } else {
+      chrome.runtime.sendMessage(
+        "bkoppfkiondldikaanlioejpfliphjjo", // EXTENSION ID
+        {
+          type: "YOUTUBE_BLEND_AUTH",
+          token
+        },
+        (response) => {
+          console.log("Sent token to extension", response);
+          window.close();
+        }
+      );
+    }
+  </script>
+</body>
+</html>
