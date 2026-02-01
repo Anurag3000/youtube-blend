@@ -35,7 +35,7 @@ document.getElementById("exportBtn").addEventListener("click", () => {
 });
 
 function convertToCSV(data) {
-  const headers = ["videoTitle", "channelName", "videoUrl", "watchedAt"];
+  const headers = ["videoTitle", "channelName", "category", "videoUrl", "watchedAt"];
 
   const rows = data.map(item =>
     headers

@@ -13,6 +13,7 @@ def validate_columns(df):
     required = {
         "videoTitle",
         "channelName",
+        "category",
         "videoUrl",
         "watchedAt"
     }
@@ -23,7 +24,11 @@ def validate_columns(df):
 def clean_string_columns(df):
     df["channel"]=(df["channel"].astype(str).str.strip().str.lower())
     df["category"]=(df["category"].astype(str).str.strip().str.lower())
-    
+    # FIX: Don't overwrite category if it exists. Fill NaNs with "unknown"
+    if "category" in df.columns:
+        df["category"] = df["category"].fillna("unknown").astype(str).str.strip().str.lower()
+    else:
+        df["category"] = "unknown"
     df=df[(df["channel"]!="") & (df["category"])!=""]
     # removes empty entries in the columns, these rows are useless for similarity
     
