@@ -24,6 +24,10 @@
           window.close();
         }
       );
+      if (source === "extension") {
+  return res.sendFile("auth-success.html");
+}
+
     }
   </script>
 </body>

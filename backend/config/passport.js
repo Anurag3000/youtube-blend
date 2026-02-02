@@ -34,10 +34,10 @@ passport.use(
         avatar: profile.photos?.[0]?.value
         });
 
-        const token = signToken(user);
-        res.redirect(
-        `http://localhost:3000/auth/success?token=${token}`
-        );
+        // const token = signToken(user);
+        // res.redirect(
+        // `http://localhost:3000/auth/success?token=${token}`
+        // );
         }
 
         return done(null, user);
